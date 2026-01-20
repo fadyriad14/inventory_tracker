@@ -1,3 +1,4 @@
+// lib/features/inventory/screens/edit_item_screen.dart
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameCtrl;
+  late final TextEditingController _skuCtrl; // ✅ NEW
   String? _photoPath;
 
   bool _saving = false;
@@ -31,50 +33,52 @@ class _EditItemScreenState extends State<EditItemScreen> {
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.item.name);
+    _skuCtrl = TextEditingController(text: widget.item.sku ?? ''); // ✅ NEW
     _photoPath = widget.item.photoPath;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _skuCtrl.dispose(); // ✅ NEW
     super.dispose();
   }
 
   Future<void> _pickPhoto() async {
-  final picker = ImagePicker();
+    final picker = ImagePicker();
 
-  final source = await showModalBottomSheet<ImageSource>(
-    context: context,
-    builder: (context) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.camera_alt),
-            title: const Text('Take photo'),
-            onTap: () => Navigator.pop(context, ImageSource.camera),
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_library),
-            title: const Text('Choose from library'),
-            onTap: () => Navigator.pop(context, ImageSource.gallery),
-          ),
-        ],
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from library'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
 
-  if (source == null) return;
+    if (source == null) return;
 
-  final file = await picker.pickImage(
-    source: source,
-    imageQuality: 80,
-  );
+    final file = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+    );
 
-  if (file == null) return;
+    if (file == null) return;
 
-  setState(() => _photoPath = file.path);
-}
+    setState(() => _photoPath = file.path);
+  }
 
   Future<void> _removePhoto() async {
     setState(() => _photoPath = null);
@@ -85,9 +89,13 @@ class _EditItemScreenState extends State<EditItemScreen> {
 
     setState(() => _saving = true);
     try {
+      final skuText = _skuCtrl.text.trim(); // ✅ NEW
+      final sku = skuText.isEmpty ? null : skuText; // ✅ NEW
+
       await widget.db.updateItem(
         itemId: widget.item.id,
         name: _nameCtrl.text.trim(),
+        sku: sku, // ✅ NEW
         photoPath: _photoPath,
       );
 
@@ -97,43 +105,44 @@ class _EditItemScreenState extends State<EditItemScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
-Future<void> _confirmDelete() async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Delete item?'),
-      content: const Text(
-        'This will permanently delete this item and its full history.',
+
+  Future<void> _confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete item?'),
+        content: const Text(
+          'This will permanently delete this item and its full history.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
-  );
+    );
 
-  if (ok != true) return;
+    if (ok != true) return;
 
-  setState(() => _saving = true);
-  try {
-    await widget.db.deleteItem(widget.item.id);
-    if (!mounted) return;
+    setState(() => _saving = true);
+    try {
+      await widget.db.deleteItem(widget.item.id);
+      if (!mounted) return;
 
-    // Close Edit screen
-    Navigator.pop(context);
+      // Close Edit screen
+      Navigator.pop(context);
 
-    // Close Item Details screen (since item is gone)
-    Navigator.pop(context);
-  } finally {
-    if (mounted) setState(() => _saving = false);
+      // Close Item Details screen (since item is gone)
+      Navigator.pop(context);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -191,14 +200,28 @@ Future<void> _confirmDelete() async {
 
             Form(
               key: _formKey,
-              child: TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Item name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Item name',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ✅ NEW: SKU
+                  TextFormField(
+                    controller: _skuCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'SKU (optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -218,15 +241,14 @@ Future<void> _confirmDelete() async {
               ),
             ),
             const SizedBox(height: 24),
-                SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                    onPressed: _saving ? null : _confirmDelete,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Delete item'),
-                ),
-                ),
-
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _saving ? null : _confirmDelete,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Delete item'),
+              ),
+            ),
           ],
         ),
       ),

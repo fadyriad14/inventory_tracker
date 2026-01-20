@@ -1,3 +1,4 @@
+// lib/features/inventory/screens/item_details_screen.dart
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,6 @@ import '../widgets/set_exact_stock_sheet.dart';
 import '../widgets/receive_shipment_sheet.dart';
 import '../widgets/deduct_order_sheet.dart';
 import 'edit_item_screen.dart';
-
 
 class ItemDetailsScreen extends StatelessWidget {
   final AppDb db;
@@ -36,6 +36,9 @@ class ItemDetailsScreen extends StatelessWidget {
         final boxes = item!.onHandUnits ~/ item.unitsPerBox;
         final units = item.onHandUnits % item.unitsPerBox;
 
+        final skuText = (item.sku ?? '').trim();
+        final hasSku = skuText.isNotEmpty;
+
         return Scaffold(
           appBar: AppBar(
             title: Text(item.name),
@@ -53,7 +56,6 @@ class ItemDetailsScreen extends StatelessWidget {
               ),
             ],
           ),
-
           body: SafeArea(
             child: ListView(
               padding: const EdgeInsets.all(16),
@@ -75,7 +77,9 @@ class ItemDetailsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.black12),
                     ),
-                    child: const Center(child: Icon(Icons.inventory_2, size: 48)),
+                    child: const Center(
+                      child: Icon(Icons.inventory_2, size: 48),
+                    ),
                   ),
 
                 const SizedBox(height: 16),
@@ -91,6 +95,16 @@ class ItemDetailsScreen extends StatelessWidget {
                           'On Hand',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
+
+                        // ✅ SKU (only if present)
+                        if (hasSku) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'SKU: $skuText',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+
                         const SizedBox(height: 10),
                         Text(
                           '$boxes box(es)',
@@ -174,41 +188,44 @@ class ItemDetailsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-const SizedBox(height: 12),
 
-Row(
-  children: [
-    Expanded(
-      child: FilledButton.icon(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => ReceiveShipmentSheet(db: db, item: item),
-          );
-        },
-        icon: const Icon(Icons.local_shipping),
-        label: const Text('Receive shipment'),
-      ),
-    ),
-    const SizedBox(width: 12),
-    Expanded(
-      child: OutlinedButton.icon(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => DeductOrderSheet(db: db, item: item),
-          );
-        },
-        icon: const Icon(Icons.shopping_cart_checkout),
-        label: const Text('Deduct order'),
-      ),
-    ),
-  ],
-),
+                const SizedBox(height: 12),
 
-                // ✅ THIS IS WHERE "SET EXACT AMOUNT" GOES
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            builder: (_) =>
+                                ReceiveShipmentSheet(db: db, item: item),
+                          );
+                        },
+                        icon: const Icon(Icons.local_shipping),
+                        label: const Text('Receive shipment'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            builder: (_) =>
+                                DeductOrderSheet(db: db, item: item),
+                          );
+                        },
+                        icon: const Icon(Icons.shopping_cart_checkout),
+                        label: const Text('Deduct order'),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Set exact
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
@@ -272,15 +289,14 @@ Row(
 
                           final note = (tx.note ?? '').trim();
 
-                            return ListTile(
+                          return ListTile(
                             title: Text(typed),
                             subtitle: Text(
-                                note.isEmpty ? when : '$when\n$note',
+                              note.isEmpty ? when : '$when\n$note',
                             ),
                             isThreeLine: note.isNotEmpty,
                             trailing: Text('$sign$delta'),
-                            );
-
+                          );
                         },
                       ),
                     );

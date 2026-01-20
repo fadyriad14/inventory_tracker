@@ -12,6 +12,9 @@ class Items extends Table {
 
   TextColumn get name => text()();
 
+  // ✅ NEW: optional SKU
+  TextColumn get sku => text().nullable()();
+
   // Example: Cedar Small = 40, Cedar Medium = 24
   IntColumn get unitsPerBox => integer()();
 
@@ -52,7 +55,20 @@ class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  // ✅ IMPORTANT: migration for adding sku when upgrading from schemaVersion 1 -> 2
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(items, items.sku);
+          }
+        },
+      );
 
   // --- Reads ---
   Stream<List<Item>> watchAllItems() {
@@ -74,13 +90,16 @@ class AppDb extends _$AppDb {
   // --- Writes ---
   Future<int> createItem({
     required String name,
+    String? sku, // ✅ NEW
     required int unitsPerBox,
     int initialUnits = 0,
     String? photoPath,
   }) {
+    final normalizedSku = (sku ?? '').trim();
     return into(items).insert(
       ItemsCompanion.insert(
         name: name,
+        sku: Value(normalizedSku.isEmpty ? null : normalizedSku), // ✅ NEW
         unitsPerBox: unitsPerBox,
         onHandUnits: Value(initialUnits),
         photoPath: Value(photoPath),
@@ -95,7 +114,8 @@ class AppDb extends _$AppDb {
     int? units,
     String? note,
   }) async {
-    final item = await (select(items)..where((t) => t.id.equals(itemId))).getSingle();
+    final item =
+        await (select(items)..where((t) => t.id.equals(itemId))).getSingle();
 
     final b = boxes ?? 0;
     final u = units ?? 0;
@@ -135,21 +155,29 @@ class AppDb extends _$AppDb {
   Future<void> updateItem({
     required int itemId,
     required String name,
+    String? sku, // ✅ NEW
     String? photoPath,
   }) async {
+    final normalizedSku = (sku ?? '').trim();
+
     await (update(items)..where((t) => t.id.equals(itemId))).write(
       ItemsCompanion(
         name: Value(name),
+        sku: Value(normalizedSku.isEmpty ? null : normalizedSku), // ✅ NEW
         photoPath: Value(photoPath),
+        updatedAt: Value(DateTime.now()), // ✅ keep updatedAt accurate
       ),
     );
   }
-Future<void> deleteItem(int itemId) async {
-  await transaction(() async {
-    await (delete(inventoryTransactions)..where((t) => t.itemId.equals(itemId))).go();
-    await (delete(items)..where((t) => t.id.equals(itemId))).go();
-  });
-}
+
+  Future<void> deleteItem(int itemId) async {
+    await transaction(() async {
+      await (delete(inventoryTransactions)
+            ..where((t) => t.itemId.equals(itemId)))
+          .go();
+      await (delete(items)..where((t) => t.id.equals(itemId))).go();
+    });
+  }
 
   Future<void> setExactStock({
     required int itemId,
@@ -157,7 +185,8 @@ Future<void> deleteItem(int itemId) async {
     required int unitsRemainder,
     String? note,
   }) async {
-    final item = await (select(items)..where((t) => t.id.equals(itemId))).getSingle();
+    final item =
+        await (select(items)..where((t) => t.id.equals(itemId))).getSingle();
 
     final targetUnits = (boxes * item.unitsPerBox) + unitsRemainder;
     final clamped = targetUnits < 0 ? 0 : targetUnits;

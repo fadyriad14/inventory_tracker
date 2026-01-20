@@ -1,3 +1,4 @@
+// lib/features/inventory/screens/new_item_screen.dart
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ class _NewItemScreenState extends State<NewItemScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameCtrl = TextEditingController();
+  final _skuCtrl = TextEditingController(); // ✅ NEW
   final _unitsPerBoxCtrl = TextEditingController();
   final _startBoxesCtrl = TextEditingController(text: '0');
   final _startUnitsCtrl = TextEditingController(text: '0');
@@ -26,6 +28,7 @@ class _NewItemScreenState extends State<NewItemScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _skuCtrl.dispose(); // ✅ NEW
     _unitsPerBoxCtrl.dispose();
     _startBoxesCtrl.dispose();
     _startUnitsCtrl.dispose();
@@ -33,41 +36,40 @@ class _NewItemScreenState extends State<NewItemScreen> {
   }
 
   Future<void> _pickPhoto() async {
-  final picker = ImagePicker();
+    final picker = ImagePicker();
 
-  final source = await showModalBottomSheet<ImageSource>(
-    context: context,
-    builder: (context) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.camera_alt),
-            title: const Text('Take photo'),
-            onTap: () => Navigator.pop(context, ImageSource.camera),
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_library),
-            title: const Text('Choose from library'),
-            onTap: () => Navigator.pop(context, ImageSource.gallery),
-          ),
-        ],
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from library'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
 
-  if (source == null) return;
+    if (source == null) return;
 
-  final file = await picker.pickImage(
-    source: source,
-    imageQuality: 80,
-  );
+    final file = await picker.pickImage(
+      source: source,
+      imageQuality: 80,
+    );
 
-  if (file == null) return;
+    if (file == null) return;
 
-  setState(() => _photoPath = file.path);
-}
-
+    setState(() => _photoPath = file.path);
+  }
 
   int _parseInt(String s) => int.tryParse(s.trim()) ?? 0;
 
@@ -77,6 +79,10 @@ class _NewItemScreenState extends State<NewItemScreen> {
     setState(() => _saving = true);
     try {
       final name = _nameCtrl.text.trim();
+
+      final skuText = _skuCtrl.text.trim(); // ✅ NEW
+      final sku = skuText.isEmpty ? null : skuText; // ✅ NEW
+
       final unitsPerBox = _parseInt(_unitsPerBoxCtrl.text);
       final startBoxes = _parseInt(_startBoxesCtrl.text);
       final startUnits = _parseInt(_startUnitsCtrl.text);
@@ -85,6 +91,7 @@ class _NewItemScreenState extends State<NewItemScreen> {
 
       await widget.db.createItem(
         name: name,
+        sku: sku, // ✅ NEW
         unitsPerBox: unitsPerBox,
         initialUnits: initialUnits,
         photoPath: _photoPath,
@@ -108,7 +115,11 @@ class _NewItemScreenState extends State<NewItemScreen> {
             if (_photoPath != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(File(_photoPath!), height: 180, fit: BoxFit.cover),
+                child: Image.file(
+                  File(_photoPath!),
+                  height: 180,
+                  fit: BoxFit.cover,
+                ),
               )
             else
               Container(
@@ -140,7 +151,20 @@ class _NewItemScreenState extends State<NewItemScreen> {
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
                   ),
+
                   const SizedBox(height: 12),
+
+                  // ✅ NEW: SKU
+                  TextFormField(
+                    controller: _skuCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'SKU (optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
                   TextFormField(
                     controller: _unitsPerBoxCtrl,
                     keyboardType: TextInputType.number,

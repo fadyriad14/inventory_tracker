@@ -30,6 +30,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _skuMeta = const VerificationMeta('sku');
+  @override
+  late final GeneratedColumn<String> sku = GeneratedColumn<String>(
+    'sku',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _unitsPerBoxMeta = const VerificationMeta(
     'unitsPerBox',
   );
@@ -92,6 +101,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
   List<GeneratedColumn> get $columns => [
     id,
     name,
+    sku,
     unitsPerBox,
     onHandUnits,
     photoPath,
@@ -120,6 +130,12 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
+    }
+    if (data.containsKey('sku')) {
+      context.handle(
+        _skuMeta,
+        sku.isAcceptableOrUnknown(data['sku']!, _skuMeta),
+      );
     }
     if (data.containsKey('units_per_box')) {
       context.handle(
@@ -176,6 +192,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
+      sku: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sku'],
+      ),
       unitsPerBox: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}units_per_box'],
@@ -208,6 +228,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, Item> {
 class Item extends DataClass implements Insertable<Item> {
   final int id;
   final String name;
+  final String? sku;
   final int unitsPerBox;
   final int onHandUnits;
   final String? photoPath;
@@ -216,6 +237,7 @@ class Item extends DataClass implements Insertable<Item> {
   const Item({
     required this.id,
     required this.name,
+    this.sku,
     required this.unitsPerBox,
     required this.onHandUnits,
     this.photoPath,
@@ -227,6 +249,9 @@ class Item extends DataClass implements Insertable<Item> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
+    if (!nullToAbsent || sku != null) {
+      map['sku'] = Variable<String>(sku);
+    }
     map['units_per_box'] = Variable<int>(unitsPerBox);
     map['on_hand_units'] = Variable<int>(onHandUnits);
     if (!nullToAbsent || photoPath != null) {
@@ -241,6 +266,7 @@ class Item extends DataClass implements Insertable<Item> {
     return ItemsCompanion(
       id: Value(id),
       name: Value(name),
+      sku: sku == null && nullToAbsent ? const Value.absent() : Value(sku),
       unitsPerBox: Value(unitsPerBox),
       onHandUnits: Value(onHandUnits),
       photoPath: photoPath == null && nullToAbsent
@@ -259,6 +285,7 @@ class Item extends DataClass implements Insertable<Item> {
     return Item(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
+      sku: serializer.fromJson<String?>(json['sku']),
       unitsPerBox: serializer.fromJson<int>(json['unitsPerBox']),
       onHandUnits: serializer.fromJson<int>(json['onHandUnits']),
       photoPath: serializer.fromJson<String?>(json['photoPath']),
@@ -272,6 +299,7 @@ class Item extends DataClass implements Insertable<Item> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
+      'sku': serializer.toJson<String?>(sku),
       'unitsPerBox': serializer.toJson<int>(unitsPerBox),
       'onHandUnits': serializer.toJson<int>(onHandUnits),
       'photoPath': serializer.toJson<String?>(photoPath),
@@ -283,6 +311,7 @@ class Item extends DataClass implements Insertable<Item> {
   Item copyWith({
     int? id,
     String? name,
+    Value<String?> sku = const Value.absent(),
     int? unitsPerBox,
     int? onHandUnits,
     Value<String?> photoPath = const Value.absent(),
@@ -291,6 +320,7 @@ class Item extends DataClass implements Insertable<Item> {
   }) => Item(
     id: id ?? this.id,
     name: name ?? this.name,
+    sku: sku.present ? sku.value : this.sku,
     unitsPerBox: unitsPerBox ?? this.unitsPerBox,
     onHandUnits: onHandUnits ?? this.onHandUnits,
     photoPath: photoPath.present ? photoPath.value : this.photoPath,
@@ -301,6 +331,7 @@ class Item extends DataClass implements Insertable<Item> {
     return Item(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
+      sku: data.sku.present ? data.sku.value : this.sku,
       unitsPerBox: data.unitsPerBox.present
           ? data.unitsPerBox.value
           : this.unitsPerBox,
@@ -318,6 +349,7 @@ class Item extends DataClass implements Insertable<Item> {
     return (StringBuffer('Item(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('sku: $sku, ')
           ..write('unitsPerBox: $unitsPerBox, ')
           ..write('onHandUnits: $onHandUnits, ')
           ..write('photoPath: $photoPath, ')
@@ -331,6 +363,7 @@ class Item extends DataClass implements Insertable<Item> {
   int get hashCode => Object.hash(
     id,
     name,
+    sku,
     unitsPerBox,
     onHandUnits,
     photoPath,
@@ -343,6 +376,7 @@ class Item extends DataClass implements Insertable<Item> {
       (other is Item &&
           other.id == this.id &&
           other.name == this.name &&
+          other.sku == this.sku &&
           other.unitsPerBox == this.unitsPerBox &&
           other.onHandUnits == this.onHandUnits &&
           other.photoPath == this.photoPath &&
@@ -353,6 +387,7 @@ class Item extends DataClass implements Insertable<Item> {
 class ItemsCompanion extends UpdateCompanion<Item> {
   final Value<int> id;
   final Value<String> name;
+  final Value<String?> sku;
   final Value<int> unitsPerBox;
   final Value<int> onHandUnits;
   final Value<String?> photoPath;
@@ -361,6 +396,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   const ItemsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
+    this.sku = const Value.absent(),
     this.unitsPerBox = const Value.absent(),
     this.onHandUnits = const Value.absent(),
     this.photoPath = const Value.absent(),
@@ -370,6 +406,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   ItemsCompanion.insert({
     this.id = const Value.absent(),
     required String name,
+    this.sku = const Value.absent(),
     required int unitsPerBox,
     this.onHandUnits = const Value.absent(),
     this.photoPath = const Value.absent(),
@@ -380,6 +417,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   static Insertable<Item> custom({
     Expression<int>? id,
     Expression<String>? name,
+    Expression<String>? sku,
     Expression<int>? unitsPerBox,
     Expression<int>? onHandUnits,
     Expression<String>? photoPath,
@@ -389,6 +427,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
+      if (sku != null) 'sku': sku,
       if (unitsPerBox != null) 'units_per_box': unitsPerBox,
       if (onHandUnits != null) 'on_hand_units': onHandUnits,
       if (photoPath != null) 'photo_path': photoPath,
@@ -400,6 +439,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
   ItemsCompanion copyWith({
     Value<int>? id,
     Value<String>? name,
+    Value<String?>? sku,
     Value<int>? unitsPerBox,
     Value<int>? onHandUnits,
     Value<String?>? photoPath,
@@ -409,6 +449,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     return ItemsCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
+      sku: sku ?? this.sku,
       unitsPerBox: unitsPerBox ?? this.unitsPerBox,
       onHandUnits: onHandUnits ?? this.onHandUnits,
       photoPath: photoPath ?? this.photoPath,
@@ -425,6 +466,9 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
+    }
+    if (sku.present) {
+      map['sku'] = Variable<String>(sku.value);
     }
     if (unitsPerBox.present) {
       map['units_per_box'] = Variable<int>(unitsPerBox.value);
@@ -449,6 +493,7 @@ class ItemsCompanion extends UpdateCompanion<Item> {
     return (StringBuffer('ItemsCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
+          ..write('sku: $sku, ')
           ..write('unitsPerBox: $unitsPerBox, ')
           ..write('onHandUnits: $onHandUnits, ')
           ..write('photoPath: $photoPath, ')
@@ -985,6 +1030,7 @@ typedef $$ItemsTableCreateCompanionBuilder =
     ItemsCompanion Function({
       Value<int> id,
       required String name,
+      Value<String?> sku,
       required int unitsPerBox,
       Value<int> onHandUnits,
       Value<String?> photoPath,
@@ -995,6 +1041,7 @@ typedef $$ItemsTableUpdateCompanionBuilder =
     ItemsCompanion Function({
       Value<int> id,
       Value<String> name,
+      Value<String?> sku,
       Value<int> unitsPerBox,
       Value<int> onHandUnits,
       Value<String?> photoPath,
@@ -1049,6 +1096,11 @@ class $$ItemsTableFilterComposer extends Composer<_$AppDb, $ItemsTable> {
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sku => $composableBuilder(
+    column: $table.sku,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1122,6 +1174,11 @@ class $$ItemsTableOrderingComposer extends Composer<_$AppDb, $ItemsTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sku => $composableBuilder(
+    column: $table.sku,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get unitsPerBox => $composableBuilder(
     column: $table.unitsPerBox,
     builder: (column) => ColumnOrderings(column),
@@ -1161,6 +1218,9 @@ class $$ItemsTableAnnotationComposer extends Composer<_$AppDb, $ItemsTable> {
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get sku =>
+      $composableBuilder(column: $table.sku, builder: (column) => column);
 
   GeneratedColumn<int> get unitsPerBox => $composableBuilder(
     column: $table.unitsPerBox,
@@ -1238,6 +1298,7 @@ class $$ItemsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
+                Value<String?> sku = const Value.absent(),
                 Value<int> unitsPerBox = const Value.absent(),
                 Value<int> onHandUnits = const Value.absent(),
                 Value<String?> photoPath = const Value.absent(),
@@ -1246,6 +1307,7 @@ class $$ItemsTableTableManager
               }) => ItemsCompanion(
                 id: id,
                 name: name,
+                sku: sku,
                 unitsPerBox: unitsPerBox,
                 onHandUnits: onHandUnits,
                 photoPath: photoPath,
@@ -1256,6 +1318,7 @@ class $$ItemsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required String name,
+                Value<String?> sku = const Value.absent(),
                 required int unitsPerBox,
                 Value<int> onHandUnits = const Value.absent(),
                 Value<String?> photoPath = const Value.absent(),
@@ -1264,6 +1327,7 @@ class $$ItemsTableTableManager
               }) => ItemsCompanion.insert(
                 id: id,
                 name: name,
+                sku: sku,
                 unitsPerBox: unitsPerBox,
                 onHandUnits: onHandUnits,
                 photoPath: photoPath,
