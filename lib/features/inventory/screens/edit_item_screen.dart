@@ -41,15 +41,40 @@ class _EditItemScreenState extends State<EditItemScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
-    if (file == null) return;
+  final picker = ImagePicker();
 
-    setState(() => _photoPath = file.path);
-  }
+  final source = await showModalBottomSheet<ImageSource>(
+    context: context,
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.camera_alt),
+            title: const Text('Take photo'),
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library),
+            title: const Text('Choose from library'),
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  if (source == null) return;
+
+  final file = await picker.pickImage(
+    source: source,
+    imageQuality: 80,
+  );
+
+  if (file == null) return;
+
+  setState(() => _photoPath = file.path);
+}
 
   Future<void> _removePhoto() async {
     setState(() => _photoPath = null);
